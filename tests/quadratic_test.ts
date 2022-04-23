@@ -110,6 +110,7 @@ Clarinet.test({
     };
 
     let block = chain.mineBlock([makeProposalTx(maker, proposal)]);
+
     block.receipts[0].result.expectOk();
 
     block = chain.mineBlock([
@@ -159,6 +160,11 @@ Clarinet.test({
       `${tokenPrincipal(deployer)}::miamicoin`
     );
   },
+});
+
+Clarinet.test({
+  name: "Can claim funds after round",
+  async fn(chain: Chain, accounts: Map<string, Account>) {},
 });
 
 // Clarinet.test({
