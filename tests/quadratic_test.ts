@@ -17,6 +17,7 @@ import {
   makeRoundUpdateTx,
   getRound,
   makeProposalUpdateTx,
+  makeClaimTx,
 } from "./helpers.ts";
 
 Clarinet.test({
@@ -152,7 +153,6 @@ Clarinet.test({
     let block = chain.mineBlock([makeRoundTx(maker, round)]);
     block = chain.mineBlock([makeMatchTx(maker, match)]);
     block.receipts[0].result.expectOk();
-    console.log(block.receipts[0].events);
     block.receipts[0].events.expectFungibleTokenTransferEvent(
       match.amount,
       maker.address,
@@ -164,81 +164,6 @@ Clarinet.test({
 
 Clarinet.test({
   name: "Can claim funds after round",
-  async fn(chain: Chain, accounts: Map<string, Account>) {},
-});
-
-// Clarinet.test({
-//   name: "Can send a donation",
-//   async fn(chain: Chain, accounts: Map<string, Account>) {
-//     const [deployer, maker, voter] = ["deployer", "wallet_1", "wallet_2"].map(
-//       (name) => accounts.get(name)!
-//     );
-
-//     const proposal = {
-//       owner: maker.address,
-//       meta: "https://someUrlToPointer.com",
-//     };
-
-//     let block = chain.mineBlock([makeProposalTx(maker, proposal)]);
-//     block.receipts[0].result.expectOk();
-
-//     const match = {
-//       roundId: 0,
-//       token: tokenPrincipal(deployer),
-//       amount: 10000000000,
-//     };
-
-//     const round = {
-//       payoutAdmin: maker.address,
-//       metaAdmin: maker.address,
-//       donationToken: tokenPrincipal(deployer),
-//       matchingToken: tokenPrincipal(deployer),
-//       startBlock: 5,
-//       endBlock: 10,
-//       meta: "https://someUrlToPointer.com",
-//     };
-
-//     block = chain.mineBlock([makeRoundTx(maker, { ...round, proposals: [0] })]);
-//     block.receipts[0].result.expectOk();
-
-//     const donation = {
-//       proposalId: 0,
-//       token: tokenPrincipal(deployer),
-//       amount: 1000,
-//       roundId: 0,
-//     };
-//     chain.mineEmptyBlock(5);
-//     block = chain.mineBlock([
-//       makeDonationTx(voter, donation),
-//       makeDonationTx(deployer, { ...donation, amount: 1000 }),
-//       makeMatchTx(maker, match),
-//     ]);
-//     block.receipts[0].result.expectOk();
-
-//     console.log(block.receipts[0].events);
-//     console.log(block.receipts[1].events);
-//     const tally = chain.callReadOnlyFn(
-//       contractName,
-//       "get-tally",
-//       [types.uint(0), types.uint(0)],
-//       deployer.address
-//     );
-
-//     const roundStats = chain.callReadOnlyFn(
-//       contractName,
-//       "get-round",
-//       [types.uint(0)],
-//       deployer.address
-//     );
-//     console.log("<><><><><>");
-//     console.log(tally.result);
-//     console.log("<><><><><>");
-//     console.log("<<<<<<<<<<", roundStats.result);
-//   },
-// });
-
-Clarinet.test({
-  name: "full test",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const [deployer, wal1, wal2, wal3, wal4, wal5, wal6, wal7, wal8] = [
       "deployer",
@@ -290,7 +215,7 @@ Clarinet.test({
 
     chain.mineEmptyBlock(5);
 
-    const block = chain.mineBlock([
+    chain.mineBlock([
       makeMatchTx(wal1, match),
       makeDonationTx(wal2, { ...donation, amount: 10, proposalId: 0 }),
       makeDonationTx(wal3, { ...donation, amount: 20, proposalId: 0 }),
@@ -300,63 +225,76 @@ Clarinet.test({
       makeDonationTx(wal7, { ...donation, proposalId: 2, amount: 10 }),
       makeDonationTx(wal8, { ...donation, proposalId: 3, amount: 8 }),
     ]);
-    const tally = chain.callReadOnlyFn(
-      contractName,
-      "get-tally",
-      [types.uint(0), types.uint(0)],
-      deployer.address
-    );
-    const tally2 = chain.callReadOnlyFn(
-      contractName,
-      "get-tally",
-      [types.uint(0), types.uint(1)],
-      deployer.address
-    );
 
-    const roundStats = chain.callReadOnlyFn(
-      contractName,
-      "get-round",
-      [types.uint(0)],
-      deployer.address
-    );
-
-    const getMatch = chain.callReadOnlyFn(
+    const claim = chain.callReadOnlyFn(
       contractName,
       "get-match",
       [types.uint(0), types.uint(0)],
       deployer.address
     );
 
-    const getMatch2 = chain.callReadOnlyFn(
-      contractName,
-      "get-match",
-      [types.uint(0), types.uint(1)],
-      deployer.address
+    assertEquals(
+      claim.result.expectOk(),
+      "{claimed: false, funding-amount: u60, match: u7543}"
     );
 
-    const getMatch3 = chain.callReadOnlyFn(
-      contractName,
-      "get-match",
-      [types.uint(0), types.uint(2)],
-      deployer.address
+    let block = chain.mineBlock([
+      makeClaimTx(deployer, {
+        roundId: 0,
+        proposalId: 0,
+        token: tokenPrincipal(deployer),
+      }),
+    ]);
+
+    block.receipts[0].result.expectErr().expectUint(217);
+    chain.mineEmptyBlock(5);
+
+    block = chain.mineBlock([
+      makeClaimTx(deployer, {
+        roundId: 0,
+        proposalId: 0,
+        token: tokenPrincipal(deployer),
+      }),
+      makeClaimTx(deployer, {
+        roundId: 0,
+        proposalId: 1,
+        token: tokenPrincipal(deployer),
+      }),
+      makeClaimTx(deployer, {
+        roundId: 0,
+        proposalId: 2,
+        token: tokenPrincipal(deployer),
+      }),
+    ]);
+
+    block.receipts[0].events.expectFungibleTokenTransferEvent(
+      7543,
+      `${deployer.address}.${contractName}`,
+      deployer.address,
+      `${tokenPrincipal(deployer)}::miamicoin`
     );
 
-    const getMatch4 = chain.callReadOnlyFn(
+    block = chain.mineBlock([
+      makeClaimTx(deployer, {
+        roundId: 0,
+        proposalId: 0,
+        token: tokenPrincipal(deployer),
+      }),
+    ]);
+
+    block.receipts[0].result.expectErr().expectUint(216);
+
+    const hasClaimed = chain.callReadOnlyFn(
       contractName,
       "get-match",
-      [types.uint(0), types.uint(3)],
+      [types.uint(0), types.uint(0)],
       deployer.address
-    );
+    ).result;
 
-    console.log("<><><><><>");
-    console.log(tally.result.expectOk());
-    console.log("<><><><><>");
-    console.log(tally2.result.expectOk());
-    console.log("<><><><><>");
-    console.log(roundStats.result.expectOk());
-    console.log("<><><><><>");
-    console.log(getMatch, getMatch2, getMatch3, getMatch4);
-    console.log(calculateMatch());
+    assertEquals(
+      hasClaimed,
+      "(ok {claimed: true, funding-amount: u60, match: u7543})"
+    );
   },
 });
 

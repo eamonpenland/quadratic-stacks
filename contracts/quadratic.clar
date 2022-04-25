@@ -17,8 +17,9 @@
 (define-constant ERR_INSUFFICIENT_MATCH (err u214))
 (define-constant ERR_INVALID_MATCHING_TOKEN (err u215))
 (define-constant ERR_CLAIM_ALREADY_MADE (err u216))
+(define-constant ERR_ROUND_STILL_ACTIVE (err u217))
 (define-constant ERR_UNAUTHORIZED (err u401))
-(define-constant VOTE_SCALE_FACTOR (pow u10 u32)) ;; 16 decimal places
+(define-constant SCALE_FACTOR (pow u10 u8)) ;; 8 decimal places
 
 
 (define-data-var total-rounds uint u0)
@@ -77,11 +78,11 @@
 )
 
 (define-private (scale-up (a uint))
-  (* a VOTE_SCALE_FACTOR)
+  (* a SCALE_FACTOR)
 )
 
 (define-private (scale-down (a uint))
-  (/ a VOTE_SCALE_FACTOR)
+  (/ a SCALE_FACTOR)
 )
 
 (define-private (inner-sum (id uint) (val {acc: uint, round-id: uint}))
@@ -306,20 +307,25 @@
     )
 )
 
-
-
 (define-public (claim-single (round-id uint) (proposal-id uint) (token <sip-010-token>))
     (let (
         (proposal (try! (get-proposal proposal-id)))
         (round (try! (get-round round-id)))
         (matching (unwrap-panic (get-match round-id proposal-id)))
+        (tally (try! (get-tally round-id proposal-id)))
         (matching-token (get matching-token round))
         (amount (get match matching))
     )
+        (asserts! (> block-height (get end-at round)) ERR_ROUND_STILL_ACTIVE)
         (asserts! (not (get claimed matching)) ERR_CLAIM_ALREADY_MADE)
         (asserts! (is-eq (contract-of token) matching-token) ERR_INVALID_MATCHING_TOKEN)
-        (asserts! (> u0 amount) ERR_INSUFFICIENT_MATCH)
-        (try! (contract-call? token transfer amount CONTRACT_ADDRESS (get owner proposal) none))
+        (asserts! (> amount u0) ERR_INSUFFICIENT_MATCH)
+        (try! (as-contract (contract-call? token transfer amount CONTRACT_ADDRESS (get owner proposal) none)))
+        (map-set ProposalDonations {proposal-id: proposal-id, round-id: round-id} (merge tally
+            {
+                claimed: true
+            }
+        ))
         (ok (print {
             type: "claim-single", 
             payload: {
@@ -336,6 +342,7 @@
 ;; READ ONLY FUNCTIONS ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 (define-read-only (get-match (round-id uint) (proposal-id uint))
     (let (
         (round (unwrap! (map-get? Rounds round-id) ERR_ROUND_NOT_FOUND))
@@ -344,12 +351,12 @@
         (summed (fold inner-sum (unwrap-panic (get proposals round)) {acc: u0, round-id: round-id}))
         (acc (get acc summed))
         (total (scale-up (get match round)))
-        (divisor (/ total (get acc summed)))
+        (divisor (/ (* total SCALE_FACTOR) (get acc summed)))
     )
         (ok {
             claimed: (get claimed tally),
             funding-amount: (scale-down (get acc tally)),
-            match: (scale-down (* (* sum-sqrt sum-sqrt) divisor))
+            match: (scale-down (scale-down (* (* sum-sqrt sum-sqrt) divisor)))
         })
     )
 )

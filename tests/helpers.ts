@@ -34,6 +34,12 @@ interface Match {
   anon?: boolean;
 }
 
+interface Claim {
+  roundId: number;
+  proposalId: number;
+  token: string;
+}
+
 export const contractName = "quadratic";
 export const tokenName = "miamicoin-token";
 
@@ -194,4 +200,22 @@ export const makeDonationTx = (donator: Account, donation: Donation) =>
     "donate",
     makeDonation(donation),
     donator.address
+  );
+
+/////////////////
+//CLAIM HELPERS//
+/////////////////
+
+export const makeClaim = (claim: Claim) => [
+  types.uint(claim.roundId),
+  types.uint(claim.proposalId),
+  types.principal(claim.token),
+];
+
+export const makeClaimTx = (claimant: Account, claim: Claim) =>
+  Tx.contractCall(
+    contractName,
+    "claim-single",
+    makeClaim(claim),
+    claimant.address
   );
