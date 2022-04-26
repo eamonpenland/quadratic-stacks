@@ -298,48 +298,48 @@ Clarinet.test({
   },
 });
 
-const data = [
-  { funding: [10, 20, 30], fundingAmount: 0, match: 0 },
-  { funding: [10], fundingAmount: 0, match: 0 },
-  { funding: [9, 10], fundingAmount: 0, match: 0 },
-  { funding: [8], fundingAmount: 0, match: 0 },
-];
+// const data = [
+//   { funding: [10, 20, 30], fundingAmount: 0, match: 0 },
+//   { funding: [10], fundingAmount: 0, match: 0 },
+//   { funding: [9, 10], fundingAmount: 0, match: 0 },
+//   { funding: [8], fundingAmount: 0, match: 0 },
+// ];
 
-const match = 10000;
+// const match = 10000;
 
-const calculateMatch = () => {
-  let newData = data; // Collect data
-  let summed = 0; // Setup summed grant contributions
+// const calculateMatch = () => {
+//   let newData = data; // Collect data
+//   let summed = 0; // Setup summed grant contributions
 
-  // Loop over each grant
-  for (let i = 0; i < newData.length; i++) {
-    let sumAmount = 0;
+//   // Loop over each grant
+//   for (let i = 0; i < newData.length; i++) {
+//     let sumAmount = 0;
 
-    // Sum the square root of each grant contribution
-    for (let j = 0; j < newData[i].funding.length; j++) {
-      sumAmount += Math.sqrt(newData[i].funding[j]);
-    }
+//     // Sum the square root of each grant contribution
+//     for (let j = 0; j < newData[i].funding.length; j++) {
+//       sumAmount += Math.sqrt(newData[i].funding[j]);
+//     }
 
-    // Square the total value of each summed grants contributions
-    sumAmount *= sumAmount;
-    console.log("HEYO", sumAmount);
-    newData[i].match = sumAmount;
-    summed += sumAmount;
-  }
+//     // Square the total value of each summed grants contributions
+//     sumAmount *= sumAmount;
+//     console.log("HEYO", sumAmount);
+//     newData[i].match = sumAmount;
+//     summed += sumAmount;
+//   }
 
-  // Setup a divisor based on available match
-  let divisor = match / summed;
-  console.log("TOTAL", match);
-  console.log("SUMMED", summed);
-  console.log("DIVISOR", divisor);
-  // Multiply matched values with divisor to get match amount in range of available funds
-  for (let i = 0; i < newData.length; i++) {
-    newData[i].match *= divisor;
-    newData[i].fundingAmount += newData[i].funding.reduce((a, b) => a + b, 0);
-  }
+//   // Setup a divisor based on available match
+//   let divisor = match / summed;
+//   console.log("TOTAL", match);
+//   console.log("SUMMED", summed);
+//   console.log("DIVISOR", divisor);
+//   // Multiply matched values with divisor to get match amount in range of available funds
+//   for (let i = 0; i < newData.length; i++) {
+//     newData[i].match *= divisor;
+//     newData[i].fundingAmount += newData[i].funding.reduce((a, b) => a + b, 0);
+//   }
 
-  return newData;
-};
+//   return newData;
+// };
 
 // block.receipts[3].events.expectFungibleTokenTransferEvent(price, taker.address, maker.address, paymentAssetId);
 
