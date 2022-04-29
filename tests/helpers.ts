@@ -99,6 +99,17 @@ export const getRound = (chain: Chain, caller: Account, id: number) =>
     caller.address
   );
 
+export const replaceProposalsTx = (
+  maker: Account,
+  roundId: number,
+  proposalIds: number[]
+) =>
+  Tx.contractCall(
+    contractName,
+    "replace-proposals",
+    [types.uint(roundId), types.list(proposalIds.map((id) => types.uint(id)))],
+    maker.address
+  );
 ////////////////////
 //PROPOSAL HELPERS//
 ////////////////////

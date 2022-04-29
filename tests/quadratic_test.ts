@@ -18,6 +18,7 @@ import {
   getRound,
   makeProposalUpdateTx,
   makeClaimTx,
+  replaceProposalsTx,
 } from "./helpers.ts";
 
 Clarinet.test({
@@ -80,6 +81,47 @@ Clarinet.test({
       updatedRound.result.expectOk(),
       '{donation-token: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.miamicoin-token, end-at: u10, match: u0, matching-token: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.miamicoin-token, meta: "https://someUrlToPointerReplace.com", proposals: (some []), round-admin: ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5, start-at: u8}'
     );
+  },
+});
+
+Clarinet.test({
+  name: "Can replace proposals for a grant round",
+  async fn(chain: Chain, accounts: Map<string, Account>) {
+    const [deployer, maker] = ["deployer", "wallet_1", "wallet_2"].map(
+      (name) => accounts.get(name)!
+    );
+
+    const proposal = {
+      owner: maker.address,
+      meta: "https://someUrlToPointer.com",
+    };
+    chain.mineBlock([
+      makeProposalTx(maker, proposal),
+      makeProposalTx(maker, proposal),
+      makeProposalTx(maker, proposal),
+      makeProposalTx(maker, proposal),
+    ]);
+    const round = {
+      roundAdmin: maker.address,
+      donationToken: tokenPrincipal(deployer),
+      matchingToken: tokenPrincipal(deployer),
+      startBlock: 5,
+      endBlock: 10,
+      meta: "https://someUrlToPointerReplace.com",
+      proposals: [0, 1],
+    };
+
+    chain.mineBlock([makeRoundTx(maker, round)]);
+    let block = chain.mineBlock([
+      replaceProposalsTx(maker, 0, [2, 3]),
+      replaceProposalsTx(deployer, 0, [2, 3]),
+    ]);
+
+    assertEquals(
+      block.receipts[0].result,
+      '(ok {payload: {block-height: u3, round-id: u0}, type: "replace-proposals"})'
+    );
+    block.receipts[1].result.expectErr().expectUint(401);
   },
 });
 
@@ -211,12 +253,12 @@ Clarinet.test({
 
     chain.mineBlock([
       makeRoundTx(deployer, { ...round, proposals: [0, 1, 2, 3] }),
+      makeMatchTx(wal1, match),
     ]);
 
     chain.mineEmptyBlock(5);
 
     chain.mineBlock([
-      makeMatchTx(wal1, match),
       makeDonationTx(wal2, { ...donation, amount: 10, proposalId: 0 }),
       makeDonationTx(wal3, { ...donation, amount: 20, proposalId: 0 }),
       makeDonationTx(wal4, { ...donation, amount: 30, proposalId: 0 }),

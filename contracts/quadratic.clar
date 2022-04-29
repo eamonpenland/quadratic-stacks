@@ -18,6 +18,7 @@
 (define-constant ERR_INVALID_MATCHING_TOKEN (err u215))
 (define-constant ERR_CLAIM_ALREADY_MADE (err u216))
 (define-constant ERR_ROUND_STILL_ACTIVE (err u217))
+(define-constant ERR_ROUND_STARTED (err u218))
 (define-constant ERR_UNAUTHORIZED (err u401))
 (define-constant SCALE_FACTOR (pow u10 u8)) ;; 8 decimal places
 
@@ -195,7 +196,7 @@
         (prev-match (default-to u0 (map-get? Matches {round-id: round-id, user: contract-caller})))
     )
         (asserts! (is-eq (contract-of token) (get matching-token round)) ERR_INVALID_MATCH)
-        (asserts! (> (get end-at round) block-height) ERR_ROUND_ENDED)
+        (asserts! (> (get start-at round) block-height) ERR_ROUND_STARTED)
         (try! (contract-call? token transfer amount contract-caller CONTRACT_ADDRESS none))
         (map-set Rounds round-id (
             merge round {
@@ -292,6 +293,7 @@
         (proposal-ids (filter-ids (some proposals)))
     ) 
         (asserts! (is-eq (get round-admin round) contract-caller) ERR_UNAUTHORIZED)
+        (asserts! (> (get start-at round) block-height) ERR_ROUND_STARTED)
         (map-set Rounds round-id (merge round
             {
                 proposals: proposal-ids
