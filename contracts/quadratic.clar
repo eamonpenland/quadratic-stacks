@@ -1,5 +1,6 @@
 (use-trait sip-010-token .sip-010-trait-ft-standard.sip-010-trait)
 
+(define-constant CONTRACT_OWNER tx-sender)
 (define-constant CONTRACT_ADDRESS (as-contract tx-sender))
 (define-constant ERR_INVALID_START_BLOCK (err u201))
 (define-constant ERR_INVALID_END_BLOCK (err u202))
@@ -19,12 +20,13 @@
 (define-constant ERR_CLAIM_ALREADY_MADE (err u216))
 (define-constant ERR_ROUND_STILL_ACTIVE (err u217))
 (define-constant ERR_ROUND_STARTED (err u218))
+(define-constant ERR_TOKEN_ALREADY_SET (err u219))
 (define-constant ERR_UNAUTHORIZED (err u401))
 (define-constant SCALE_FACTOR (pow u10 u8)) ;; 8 decimal places
 
-
 (define-data-var total-rounds uint u0)
 (define-data-var total-proposals uint u0)
+(define-data-var total-tokens uint u0)
 
 
 ;;;;;;;;;;;;;;;;;;;;
@@ -62,6 +64,12 @@
     {proposal-id: uint, round-id: uint}
     {acc: uint, sum-sqrt: uint, claimed: bool}
 )
+
+(define-map Tokens
+    principal ;; token-principal
+    uint ;; token-id
+)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; PRIVATE FUNCTIONS ;;
@@ -101,9 +109,36 @@
     )
 )
 
-;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-private (create-token-id (token principal))
+    (let (
+        (token-id (+ u1 (var-get total-tokens)))
+    )
+        (asserts! (is-none (map-get? Tokens token)) ERR_TOKEN_ALREADY_SET)
+        (map-set Tokens token token-id)
+        (var-set total-tokens token-id)
+        (ok token-id)
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;
 ;; PUBLIC FUNCTIONS ;;
-;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+(define-public (set-token (token principal))
+    (begin
+        (asserts! (is-eq contract-caller CONTRACT_OWNER) ERR_UNAUTHORIZED)
+        (try! (create-token-id token))
+        (ok (print {
+            type: "set-token", 
+            payload: { 
+                token: token,
+                block-height: block-height 
+            }
+        }))
+    )
+)
 
 (define-public (create-round (round { 
         round-admin: principal, 
@@ -123,6 +158,8 @@
     )
         (asserts! (> start block-height) ERR_INVALID_START_BLOCK)
         (asserts! (> end start) ERR_INVALID_END_BLOCK)
+        (unwrap! (map-get? Tokens (get donation-token round)) ERR_INVALID_DONATION_TOKEN)
+        (unwrap! (map-get? Tokens (get matching-token round)) ERR_INVALID_MATCHING_TOKEN)
         (map-set Rounds round-id (
             merge round {
                 proposals: proposal-ids, 

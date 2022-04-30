@@ -19,6 +19,7 @@ import {
   makeProposalUpdateTx,
   makeClaimTx,
   replaceProposalsTx,
+  makeTokenTx,
 } from "./helpers.ts";
 
 Clarinet.test({
@@ -27,17 +28,26 @@ Clarinet.test({
     const [deployer, maker] = ["deployer", "wallet_1"].map(
       (name) => accounts.get(name)!
     );
+    const token = tokenPrincipal(deployer);
 
     const round = {
       roundAdmin: maker.address,
-      donationToken: tokenPrincipal(deployer),
-      matchingToken: tokenPrincipal(deployer),
+      donationToken: token,
+      matchingToken: token,
       startBlock: 1,
       endBlock: 10,
       meta: "https://someUrlToPointer.com",
     };
 
-    const block = chain.mineBlock([
+    let block = chain.mineBlock([
+      makeTokenTx(maker, token),
+      makeTokenTx(deployer, token),
+    ]);
+
+    block.receipts[0].result.expectErr().expectUint(401);
+    block.receipts[1].result.expectOk();
+
+    block = chain.mineBlock([
       makeRoundTx(maker, round),
       makeRoundTx(maker, { ...round, startBlock: 5, proposals: [0, 1] }),
     ]);
@@ -55,14 +65,18 @@ Clarinet.test({
       "wallet_2",
     ].map((name) => accounts.get(name)!);
 
+    const token = tokenPrincipal(deployer);
+
     const round = {
       roundAdmin: maker.address,
-      donationToken: tokenPrincipal(deployer),
-      matchingToken: tokenPrincipal(deployer),
+      donationToken: token,
+      matchingToken: token,
       startBlock: 1,
       endBlock: 10,
       meta: "https://someUrlToPointerReplace.com",
     };
+
+    chain.mineBlock([makeTokenTx(deployer, token)]);
 
     let block = chain.mineBlock([
       makeRoundTx(maker, round),
@@ -91,10 +105,15 @@ Clarinet.test({
       (name) => accounts.get(name)!
     );
 
+    const token = tokenPrincipal(deployer);
+
     const proposal = {
       owner: maker.address,
       meta: "https://someUrlToPointer.com",
     };
+
+    chain.mineBlock([makeTokenTx(deployer, token)]);
+
     chain.mineBlock([
       makeProposalTx(maker, proposal),
       makeProposalTx(maker, proposal),
@@ -103,8 +122,8 @@ Clarinet.test({
     ]);
     const round = {
       roundAdmin: maker.address,
-      donationToken: tokenPrincipal(deployer),
-      matchingToken: tokenPrincipal(deployer),
+      donationToken: token,
+      matchingToken: token,
       startBlock: 5,
       endBlock: 10,
       meta: "https://someUrlToPointerReplace.com",
@@ -119,7 +138,7 @@ Clarinet.test({
 
     assertEquals(
       block.receipts[0].result,
-      '(ok {payload: {block-height: u3, round-id: u0}, type: "replace-proposals"})'
+      '(ok {payload: {block-height: u4, round-id: u0}, type: "replace-proposals"})'
     );
     block.receipts[1].result.expectErr().expectUint(401);
   },
@@ -177,10 +196,14 @@ Clarinet.test({
       (name) => accounts.get(name)!
     );
 
+    const token = tokenPrincipal(deployer);
+
+    chain.mineBlock([makeTokenTx(deployer, token)]);
+
     const round = {
       roundAdmin: maker.address,
-      donationToken: tokenPrincipal(deployer),
-      matchingToken: tokenPrincipal(deployer),
+      donationToken: token,
+      matchingToken: token,
       startBlock: 5,
       endBlock: 10,
       meta: "https://someUrlToPointerReplace.com",
@@ -188,7 +211,7 @@ Clarinet.test({
 
     const match = {
       roundId: 0,
-      token: tokenPrincipal(deployer),
+      token: token,
       amount: 10000000000,
     };
 
@@ -219,20 +242,24 @@ Clarinet.test({
       "wallet_8",
     ].map((name) => accounts.get(name)!);
 
+    const token = tokenPrincipal(deployer);
+
+    chain.mineBlock([makeTokenTx(deployer, token)]);
+
     const proposal = {
       owner: deployer.address,
       meta: "https://someUrlToPointer.com",
     };
 
     const donation = {
-      token: tokenPrincipal(deployer),
+      token: token,
       roundId: 0,
     };
 
     const round = {
       roundAdmin: deployer.address,
-      donationToken: tokenPrincipal(deployer),
-      matchingToken: tokenPrincipal(deployer),
+      donationToken: token,
+      matchingToken: token,
       startBlock: 5,
       endBlock: 10,
       meta: "https://someUrlToPointer.com",
@@ -240,7 +267,7 @@ Clarinet.test({
 
     const match = {
       roundId: 0,
-      token: tokenPrincipal(deployer),
+      token: token,
       amount: 10000,
     };
 

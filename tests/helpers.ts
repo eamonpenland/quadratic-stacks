@@ -110,6 +110,14 @@ export const replaceProposalsTx = (
     [types.uint(roundId), types.list(proposalIds.map((id) => types.uint(id)))],
     maker.address
   );
+
+export const makeTokenTx = (caller: Account, token: string) =>
+  Tx.contractCall(
+    contractName,
+    "set-token",
+    [types.principal(token)],
+    caller.address
+  );
 ////////////////////
 //PROPOSAL HELPERS//
 ////////////////////
